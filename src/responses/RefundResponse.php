@@ -119,7 +119,7 @@ class RefundResponse implements RequestResponseInterface
      */
     public function getData()
     {
-        return 'fake refund';
+        rturn 'fake refund';
         //return $this->data;
     }
 
