@@ -8,6 +8,8 @@ use craft\commerce\models\payments\BasePaymentForm;
 use craft\commerce\omnipay\base\CreditCardGateway;
 use digitalpros\commerce\authorize\models\AuthorizePaymentForm;
 use digitalpros\commerce\authorize\AuthorizePaymentBundle;
+use digitalpros\commerce\authorize\responses\RefundResponse;
+
 use craft\commerce\omnipay\events\SendPaymentRequestEvent;
 use craft\commerce\omnipay\events\GatewayRequestEvent;
 use craft\commerce\models\Transaction;
@@ -310,6 +312,10 @@ class Gateway extends CreditCardGateway
 
         $request = $this->createRequest($transaction);
         $refundRequest = $this->prepareRefundRequest($request, $transaction->reference);
+
+// HACK! Work-around to always return a successful refund response. We'll refund externally and then this would ensure Craft is in sync.
+return new RefundResponse($refundRequest);
+
         $processRefund = $this->performRequest($refundRequest, $transaction);
         
         if(!$processRefund->isSuccessful() && $this->voidRefunds == "1") {
