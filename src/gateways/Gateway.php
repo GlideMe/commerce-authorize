@@ -8,8 +8,6 @@ use craft\commerce\models\payments\BasePaymentForm;
 use craft\commerce\omnipay\base\CreditCardGateway;
 use digitalpros\commerce\authorize\models\AuthorizePaymentForm;
 use digitalpros\commerce\authorize\AuthorizePaymentBundle;
-use digitalpros\commerce\authorize\responses\RefundResponse;
-
 use craft\commerce\omnipay\events\SendPaymentRequestEvent;
 use craft\commerce\omnipay\events\GatewayRequestEvent;
 use craft\commerce\models\Transaction;
