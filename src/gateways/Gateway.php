@@ -8,8 +8,6 @@ use craft\commerce\models\payments\BasePaymentForm;
 use craft\commerce\omnipay\base\CreditCardGateway;
 use digitalpros\commerce\authorize\models\AuthorizePaymentForm;
 use digitalpros\commerce\authorize\AuthorizePaymentBundle;
-use digitalpros\commerce\authorize\responses\RefundResponse;
-
 use craft\commerce\omnipay\events\SendPaymentRequestEvent;
 use craft\commerce\omnipay\events\GatewayRequestEvent;
 use craft\commerce\models\Transaction;
@@ -313,9 +311,6 @@ class Gateway extends CreditCardGateway
         $request = $this->createRequest($transaction);
         $refundRequest = $this->prepareRefundRequest($request, $transaction->reference);
 
-// HACK! Work-around to always return a successful refund response. We'll refund externally and then this would ensure Craft is in sync.
-return new RefundResponse($refundRequest);
-
         $processRefund = $this->performRequest($refundRequest, $transaction);
         
         if(!$processRefund->isSuccessful() && $this->voidRefunds == "1") {
@@ -451,6 +446,32 @@ return new RefundResponse($refundRequest);
     {
         // For authorize and capture we're referring to a transaction that already took place so no card or item shenanigans.
         if (in_array($transaction->type, [TransactionRecord::TYPE_REFUND, TransactionRecord::TYPE_CAPTURE], false)) {
+
+            if(!empty($parentTransaction = $transaction->parent)) {
+                /** @var Transaction $parentTransaction */
+                if($parentTransaction->type === TransactionRecord::TYPE_PURCHASE) {
+
+                    $parentTransactionReference = json_decode($parentTransaction->reference);
+                    $parentTransactionResponse  = json_decode($parentTransaction->response);
+
+                    // if card broken, then get card data from parent response
+                    if(!empty($parentTransactionReference) && !isset($parentTransactionReference->card, $parentTransactionReference->card->number)) {
+                        if(!empty($parentTransactionResponse->transactionResponse->accountNumber)) {
+                            $cardNumber = str_replace("X", "", $parentTransactionResponse->transactionResponse->accountNumber);
+                            $parentTransactionReference->card = new \stdClass();
+                            $parentTransactionReference->card->number = $cardNumber;
+
+                            // Expiration date isn't needed - let's add a placeholder.
+                            $parentTransactionReference->card->expiry = "XXXX";
+                            $parentTransactionReference->cardReference = json_encode($parentTransactionReference->card);
+
+                            // Roll the data back into the transaction reference.
+                            $transaction->reference = json_encode($parentTransactionReference);
+                        }
+                    }
+                }
+            }
+
             $request = $this->createPaymentRequest($transaction);
         } else {
             $order = $transaction->getOrder();
