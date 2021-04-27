@@ -473,7 +473,7 @@ class Gateway extends CreditCardGateway
         $order = $transaction->getOrder();
         
         // For authorize and capture we're referring to a transaction that already took place so no card or item shenanigans.
-        if (in_array($transaction->type, [TransactionRecord::TYPE_REFUND, TransactionRecord::TYPE_CAPTURE], false) && isset($form->customerProfile)) {
+        if (in_array($transaction->type, [TransactionRecord::TYPE_REFUND, TransactionRecord::TYPE_CAPTURE], false) && !isset($form->customerProfile)) {
             
             // Start Modifications 
             // Due to Accept.js, there are certain cases where the Card number may not be available in the transactions reference, 
@@ -485,7 +485,7 @@ class Gateway extends CreditCardGateway
             
             $transactionReference = json_decode($transaction->reference);
            
-            if(!empty($transactionReference) && !isset($transactionReference->card)) {
+            if(!empty($transactionReference) && !isset($transactionReference->card, $transactionReference->card->number)) {
                 $authorizeTransaction = Commerce::getInstance()->getTransactions()->getTransactionById($transaction->parentId);
                 if(!empty($authorizeTransaction)) {
                     $authorizeResponse = json_decode($authorizeTransaction->response);
@@ -499,7 +499,9 @@ class Gateway extends CreditCardGateway
               
               // Expiration date isn't needed - let's add a placeholder.
               $transactionReference->card->expiry = "XXXX";
-              
+
+              $transactionReference->cardReference = json_encode($transactionReference->card);
+
               // Roll the data back into the transaction reference.
               $transaction->reference = json_encode($transactionReference);
               $card = array("customerProfile" => json_decode($transaction->reference)->cardReference);
